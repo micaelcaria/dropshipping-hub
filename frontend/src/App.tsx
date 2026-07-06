@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { Package, Download, Settings, LayoutDashboard, GitCompare } from 'lucide-react'
+import { Package, Download, Settings, LayoutDashboard, GitCompare, LogOut } from 'lucide-react'
 import CatalogPage from './pages/CatalogPage'
 import ImportPage from './pages/ImportPage'
 import ExportPage from './pages/ExportPage'
@@ -15,7 +15,7 @@ const nav = [
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
-export default function App() {
+export default function App({ onLogout }: { onLogout?: () => void }) {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -43,6 +43,15 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="m-3 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          >
+            <LogOut size={16} />
+            Sair
+          </button>
+        )}
       </aside>
 
       {/* Main content */}

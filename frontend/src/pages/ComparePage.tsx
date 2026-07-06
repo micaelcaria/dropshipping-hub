@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, Search, Package, ChevronDown, ChevronUp, AlertCircle, RefreshCw } from 'lucide-react'
+import { auth } from '../lib/api'
+
+const authHeaders = (): Record<string, string> => (auth.token ? { Authorization: `Bearer ${auth.token}` } : {})
 
 interface ScrapedProduct {
   name: string
@@ -34,11 +37,11 @@ export default function ComparePage() {
 
   const { data, isLoading, error } = useQuery<{ products: ScrapedProduct[]; total: number; lastSync?: SyncInfo }>({
     queryKey: ['catalog'],
-    queryFn: () => fetch('/api/catalog').then(r => r.json()),
+    queryFn: () => fetch('/api/catalog', { headers: authHeaders() }).then(r => r.json()),
   })
 
   const syncMutation = useMutation({
-    mutationFn: () => fetch('/api/catalog/sync', { method: 'POST' }).then(r => r.json()) as Promise<SyncInfo>,
+    mutationFn: () => fetch('/api/catalog/sync', { method: 'POST', headers: authHeaders() }).then(r => r.json()) as Promise<SyncInfo>,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catalog'] }),
   })
 

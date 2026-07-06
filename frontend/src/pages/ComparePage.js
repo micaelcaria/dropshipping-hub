@@ -2,6 +2,8 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Search, Package, ChevronDown, ChevronUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { auth } from '../lib/api';
+const authHeaders = () => (auth.token ? { Authorization: `Bearer ${auth.token}` } : {});
 export default function ComparePage() {
     const [search, setSearch] = useState('');
     const [expandedCats, setExpandedCats] = useState(new Set(['all']));
@@ -9,10 +11,10 @@ export default function ComparePage() {
     const queryClient = useQueryClient();
     const { data, isLoading, error } = useQuery({
         queryKey: ['catalog'],
-        queryFn: () => fetch('/api/catalog').then(r => r.json()),
+        queryFn: () => fetch('/api/catalog', { headers: authHeaders() }).then(r => r.json()),
     });
     const syncMutation = useMutation({
-        mutationFn: () => fetch('/api/catalog/sync', { method: 'POST' }).then(r => r.json()),
+        mutationFn: () => fetch('/api/catalog/sync', { method: 'POST', headers: authHeaders() }).then(r => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catalog'] }),
     });
     const products = data?.products ?? [];
