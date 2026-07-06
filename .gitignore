@@ -6,4 +6,7 @@ backend/backend.log
 backend/sync-meta.json
 backend/all-ids.json
 backend/discovered-ids.json
+backend/pricing.json
+backend/backend.out.log
+backend/backend.err.log
 *.log
