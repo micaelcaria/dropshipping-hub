@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["src/scraper-test.ts", "src/scraper-debug.ts", "src/scraper-probe.ts", "src/scraper-discover.ts", "src/scraper-fill-missing.ts"]
+}
