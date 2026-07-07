@@ -7,19 +7,29 @@ const authHeaders = (): Record<string, string> => (auth.token ? { Authorization:
 const jsonHeaders = (): Record<string, string> => ({ 'Content-Type': 'application/json', ...authHeaders() })
 
 interface Product { name: string; supplier_ref: string; cost_price: number; category?: string; brand?: string; images: string[] }
-interface AmazonConfig { referralPct: number; fbaFee: number; vatPct: number; minMarginPct: number; minRoiPct: number }
+interface AmazonConfig { mode: 'FBM' | 'FBA'; referralPct: number; fbaFee: number; vatPct: number; minMarginPct: number; minRoiPct: number }
 interface AmazonState { config: AmazonConfig; products: Record<string, { sellPrice?: number; sellers?: number; notes?: string }> }
 
-// Calcula o lucro real de um produto na Amazon
-function analyse(cost: number, sellPrice: number, c: AmazonConfig) {
+interface ShippingTier { label: string; maxPrice: number; cost: number }
+interface PricingState { shippingTiers: ShippingTier[]; products: Record<string, { shipping?: number }> }
+
+function shippingFor(cost: number, tiers: ShippingTier[]): number {
+  const sorted = [...tiers].sort((a, b) => (a.maxPrice || Infinity) - (b.maxPrice || Infinity))
+  for (const t of sorted) if (t.maxPrice === 0 || cost <= t.maxPrice) return t.cost
+  return sorted[sorted.length - 1]?.cost ?? 0
+}
+
+// Calcula o lucro real de um produto na Amazon.
+// FBM: envias tu → desconta portes. FBA: Amazon → desconta taxa FBA.
+function analyse(cost: number, sellPrice: number, shipping: number, c: AmazonConfig) {
   const vat = sellPrice - sellPrice / (1 + c.vatPct / 100) // IVA incluído no preço de venda
   const referral = sellPrice * (c.referralPct / 100)
-  const fba = c.fbaFee
-  const profit = sellPrice - vat - referral - fba - cost
+  const fulfil = c.mode === 'FBA' ? c.fbaFee : shipping
+  const profit = sellPrice - vat - referral - fulfil - cost
   const margin = sellPrice > 0 ? (profit / sellPrice) * 100 : 0
   const roi = cost > 0 ? (profit / cost) * 100 : 0
   const worth = profit > 0 && margin >= c.minMarginPct && roi >= c.minRoiPct
-  return { vat, referral, fba, profit, margin, roi, worth }
+  return { vat, referral, fulfil, profit, margin, roi, worth }
 }
 
 export default function AmazonPage() {
@@ -35,9 +45,13 @@ export default function AmazonPage() {
     queryKey: ['amazon'],
     queryFn: () => fetch('/api/amazon', { headers: authHeaders() }).then(r => r.json()),
   })
+  const { data: pricing } = useQuery<PricingState>({
+    queryKey: ['pricing'],
+    queryFn: () => fetch('/api/pricing', { headers: authHeaders() }).then(r => r.json()),
+  })
 
   const [cfg, setCfg] = useState<AmazonConfig | null>(null)
-  const config = cfg ?? amazon?.config ?? { referralPct: 15, fbaFee: 3, vatPct: 23, minMarginPct: 15, minRoiPct: 30 }
+  const config = cfg ?? amazon?.config ?? { mode: 'FBM' as const, referralPct: 15, fbaFee: 3, vatPct: 23, minMarginPct: 15, minRoiPct: 30 }
 
   const saveConfig = useMutation({
     mutationFn: (c: AmazonConfig) => fetch('/api/amazon/config', { method: 'PUT', headers: jsonHeaders(), body: JSON.stringify(c) }).then(r => r.json()),
@@ -60,11 +74,14 @@ export default function AmazonPage() {
         const ov = overrides[p.supplier_ref] || {}
         const cost = p.cost_price || 0
         const sellPrice = ov.sellPrice ?? 0
-        const a = analyse(cost, sellPrice, config)
-        return { p, ov, cost, sellPrice, ...a, analysed: sellPrice > 0 }
+        // portes: override do produto na página Preços, senão pela tabela de escalões
+        const pOv = pricing?.products?.[p.supplier_ref]
+        const shipping = pOv?.shipping != null ? pOv.shipping : shippingFor(cost, pricing?.shippingTiers ?? [])
+        const a = analyse(cost, sellPrice, shipping, config)
+        return { p, ov, cost, sellPrice, shipping, ...a, analysed: sellPrice > 0 }
       })
       .filter(r => filter === 'all' || (filter === 'worth' ? r.worth : r.analysed))
-  }, [products, overrides, config, search, filter])
+  }, [products, overrides, pricing, config, search, filter])
 
   const analysedRows = rows.filter(r => r.analysed)
   const worthCount = analysedRows.filter(r => r.worth).length
@@ -81,7 +98,18 @@ export default function AmazonPage() {
 
       {/* Config taxas */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Taxas & critérios (estimativas ajustáveis)</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Taxas & critérios (estimativas ajustáveis)</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Modo:</span>
+            {(['FBM', 'FBA'] as const).map(m => (
+              <button key={m} onClick={() => setCfg({ ...config, mode: m })}
+                className={`px-3 py-1 rounded-lg text-xs font-medium ${config.mode === m ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                {m}{m === 'FBM' ? ' (envio próprio)' : ' (Amazon)'}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {([
             ['referralPct', 'Comissão Amazon %'],
@@ -149,6 +177,7 @@ export default function AmazonPage() {
               <th className="text-left px-4 py-2 font-medium">Produto</th>
               <th className="text-right px-3 py-2 font-medium">Custo</th>
               <th className="text-right px-3 py-2 font-medium">Preço Amazon</th>
+              <th className="text-right px-3 py-2 font-medium">Portes</th>
               <th className="text-right px-3 py-2 font-medium">Taxas</th>
               <th className="text-right px-3 py-2 font-medium">Lucro</th>
               <th className="text-right px-3 py-2 font-medium">Margem</th>
@@ -157,8 +186,8 @@ export default function AmazonPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {rows.slice(0, 300).map(({ p, cost, sellPrice, vat, referral, fba, profit, margin, roi, worth, analysed }, idx) => (
-              <tr key={`${p.supplier_ref}-${idx}-${sellPrice}`} className="hover:bg-blue-50/30">
+            {rows.slice(0, 300).map(({ p, cost, sellPrice, shipping, vat, referral, fulfil, profit, margin, roi, worth, analysed }, idx) => (
+              <tr key={`${p.supplier_ref}-${idx}-${sellPrice}-${config.mode}`} className="hover:bg-blue-50/30">
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2">
                     {p.images?.[0] ? <img src={p.images[0]} className="w-8 h-8 rounded object-cover bg-gray-100" /> : <div className="w-8 h-8 rounded bg-gray-100" />}
@@ -174,10 +203,13 @@ export default function AmazonPage() {
                     onBlur={e => { const v = parseFloat(e.target.value) || 0; if (v !== sellPrice) saveProduct.mutate({ ref: p.supplier_ref, patch: { sellPrice: v || '' } }) }}
                     className="w-20 px-2 py-1 border border-gray-200 rounded text-xs text-right" />
                 </td>
+                <td className="px-3 py-2 text-right text-gray-500 text-xs">
+                  {config.mode === 'FBM' ? `${shipping.toFixed(2)} €` : <span className="text-gray-300">—</span>}
+                </td>
                 {analysed ? (
                   <>
-                    <td className="px-3 py-2 text-right text-gray-400 text-xs" title={`IVA ${vat.toFixed(2)} + comissão ${referral.toFixed(2)} + FBA ${fba.toFixed(2)}`}>
-                      {(vat + referral + fba).toFixed(2)} €
+                    <td className="px-3 py-2 text-right text-gray-400 text-xs" title={`IVA ${vat.toFixed(2)} + comissão ${referral.toFixed(2)} + ${config.mode === 'FBA' ? 'FBA' : 'portes'} ${fulfil.toFixed(2)}`}>
+                      {(vat + referral + fulfil).toFixed(2)} €
                     </td>
                     <td className={`px-3 py-2 text-right font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>{profit.toFixed(2)} €</td>
                     <td className="px-3 py-2 text-right text-gray-600">{margin.toFixed(0)}%</td>
@@ -201,7 +233,8 @@ export default function AmazonPage() {
       </div>
 
       <p className="text-xs text-gray-400 mt-4">
-        Cálculo: Lucro = Preço Amazon − IVA − comissão Amazon − taxa FBA − custo. "Vale a pena" quando margem ≥ {config.minMarginPct}% e ROI ≥ {config.minRoiPct}%.
+        Cálculo ({config.mode}): Lucro = Preço Amazon − IVA − comissão Amazon − {config.mode === 'FBM' ? 'portes (envio próprio)' : 'taxa FBA'} − custo.
+        Os portes vêm da tabela definida em <strong>Preços & Portes</strong>. "Vale a pena" quando margem ≥ {config.minMarginPct}% e ROI ≥ {config.minRoiPct}%.
         Ligação à conta Amazon (SP-API) para dados reais de vendas e concorrência será o próximo passo.
       </p>
     </div>

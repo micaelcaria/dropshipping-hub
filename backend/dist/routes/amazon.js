@@ -6,7 +6,7 @@ const router = Router();
 const __dir = dirname(fileURLToPath(import.meta.url));
 const FILE = join(__dir, '../../amazon.json');
 const DEFAULT = {
-    config: { referralPct: 15, fbaFee: 3.0, vatPct: 23, minMarginPct: 15, minRoiPct: 30 },
+    config: { mode: 'FBM', referralPct: 15, fbaFee: 3.0, vatPct: 23, minMarginPct: 15, minRoiPct: 30 },
     products: {},
 };
 function load() {

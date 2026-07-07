@@ -10,8 +10,9 @@ const FILE = join(__dir, '../../amazon.json')
 export interface AmazonState {
   // taxas globais (estimativas — ajustáveis)
   config: {
+    mode: 'FBM' | 'FBA' // FBM = envias tu (desconta portes); FBA = Amazon (desconta taxa FBA)
     referralPct: number  // comissão Amazon (referral fee), tipicamente 15%
-    fbaFee: number       // taxa FBA por unidade (estimativa)
+    fbaFee: number       // taxa FBA por unidade (só usada em modo FBA)
     vatPct: number       // IVA do marketplace (PT/ES 23/21, usa o do país de venda)
     minMarginPct: number // margem mínima para "vale a pena"
     minRoiPct: number    // ROI mínimo para "vale a pena"
@@ -21,7 +22,7 @@ export interface AmazonState {
 }
 
 const DEFAULT: AmazonState = {
-  config: { referralPct: 15, fbaFee: 3.0, vatPct: 23, minMarginPct: 15, minRoiPct: 30 },
+  config: { mode: 'FBM', referralPct: 15, fbaFee: 3.0, vatPct: 23, minMarginPct: 15, minRoiPct: 30 },
   products: {},
 }
 
