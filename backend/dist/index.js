@@ -9,6 +9,7 @@ import scraperRouter from './routes/scraper.js';
 import exportRouter from './routes/export.js';
 import catalogRouter from './routes/catalog.js';
 import pricingRouter from './routes/pricing.js';
+import amazonRouter from './routes/amazon.js';
 import authRouter from './routes/auth.js';
 import { requireAuth } from './auth.js';
 import { startAutoSync } from './sync.js';
@@ -25,6 +26,7 @@ app.use('/api/scraper', requireAuth, scraperRouter);
 app.use('/api/export', requireAuth, exportRouter);
 app.use('/api/catalog', requireAuth, catalogRouter);
 app.use('/api/pricing', requireAuth, pricingRouter);
+app.use('/api/amazon', requireAuth, amazonRouter);
 // Em produção serve o frontend buildado (frontend/dist copiado para ./public)
 const __dir = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dir, '../public');

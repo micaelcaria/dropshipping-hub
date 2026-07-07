@@ -1,17 +1,19 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { Package, Download, Settings, LayoutDashboard, GitCompare, LogOut, Tag } from 'lucide-react'
+import { Package, Download, Settings, LayoutDashboard, GitCompare, LogOut, Tag, ShoppingCart } from 'lucide-react'
 import CatalogPage from './pages/CatalogPage'
 import ImportPage from './pages/ImportPage'
 import ExportPage from './pages/ExportPage'
 import SettingsPage from './pages/SettingsPage'
 import ComparePage from './pages/ComparePage'
 import PricingPage from './pages/PricingPage'
+import AmazonPage from './pages/AmazonPage'
 
 const nav = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/catalog', icon: Package, label: 'Catálogo' },
   { to: '/compare', icon: GitCompare, label: 'Vertente Hub' },
   { to: '/pricing', icon: Tag, label: 'Preços & Portes' },
+  { to: '/amazon', icon: ShoppingCart, label: 'Análise Amazon' },
   { to: '/import', icon: Download, label: 'Importar' },
   { to: '/export', icon: Download, label: 'Exportar' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
@@ -65,6 +67,7 @@ export default function App({ onLogout }: { onLogout?: () => void }) {
           <Route path="/export" element={<ExportPage />} />
           <Route path="/compare" element={<ComparePage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/amazon" element={<AmazonPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

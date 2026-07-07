@@ -10,3 +10,5 @@ backend/pricing.json
 backend/backend.out.log
 backend/backend.err.log
 *.log
+
+backend/amazon.json
